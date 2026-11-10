@@ -1,0 +1,21 @@
+services:
+  tiktok-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    # for the published image instead of building locally:
+    # image: ghcr.io/<your-github-user>/tiktok-live-lite:web
+    ports:
+      - "${WEBUI_PORT:-8000}:${WEBUI_PORT:-8000}"
+    volumes:
+      # all persistent data: watchlist, recordings, downloads, logs, queue,
+      # and your TikTok cookies at ./data/cookies.json (only needed for
+      # private accounts / WAF blocks)
+      - ./data:/data
+    environment:
+      - DATA_DIR=/data
+      - WEBUI_PORT=${WEBUI_PORT:-8000}
+    # recordings are finalised (joined + remuxed to MP4) after a stop,
+    # so give the app time to finish before Docker kills it
+    stop_grace_period: 120s
+    restart: unless-stopped

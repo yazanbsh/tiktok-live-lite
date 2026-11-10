@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Live Recorder Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/main.css">
+<link rel="stylesheet" href="https://cdn.plyr.io/3.8.3/plyr.css">
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <span class="logo-mark">◉ REC</span>
+      <span class="logo-title">Live Recorder<br>Dashboard</span>
+    </div>
+    <nav>
+      <div class="nav-item active" onclick="showPanel('watchlist')">
+        <span class="nav-icon">◈</span> Watchlist
+      </div>
+      <div class="nav-item" onclick="showPanel('recordings')">
+        <span class="nav-icon">▣</span> TK Recordings
+      </div>
+      <div class="nav-item" onclick="showPanel('downloader')">
+        <span class="nav-icon">↓</span> Downloader
+      </div>
+      <div class="nav-item" onclick="showPanel('downloads')">
+        <span class="nav-icon">▤</span> Downloads
+      </div>
+      <div class="nav-item" onclick="showPanel('logs')">
+        <span class="nav-icon">≡</span> Logs
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="status-dot"></span>SERVER ONLINE
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <span class="page-title" id="page-title">Watchlist</span>
+      <div class="topbar-actions" id="topbar-actions">
+        <button class="btn btn-ghost" onclick="refreshAll()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── WATCHLIST PANEL ── -->
+      <div class="panel active" id="panel-watchlist">
+
+        <!-- TikTok Section -->
+        <div style="margin-bottom:36px;">
+          <div class="section-header" style="margin-bottom:14px;">
+            <span class="section-title" style="color:var(--accent);">◉ TikTok</span>
+            <button class="btn btn-primary" style="padding:6px 14px;font-size:10px;" onclick="openAddModal()">+ Add User</button>
+          </div>
+
+          <div class="stats-row" id="stats-row" style="margin-bottom:18px;">
+            <div class="stat-card red">
+              <div class="stat-label">Monitored</div>
+              <div class="stat-value" id="stat-total">—</div>
+            </div>
+            <div class="stat-card red">
+              <div class="stat-label">Recording</div>
+              <div class="stat-value" id="stat-recording">—</div>
+            </div>
+            <div class="stat-card green">
+              <div class="stat-label">Saved Clips</div>
+              <div class="stat-value" id="stat-clips">—</div>
+            </div>
+            <div class="stat-card blue">
+              <div class="stat-label">Disk Used</div>
+              <div class="stat-value" id="stat-disk">—</div>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Status</th>
+                  <th>Mode</th>
+                  <th>TikTok Live</th>
+                  <th>Last Seen Live</th>
+                  <th>Recordings</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="watchlist-tbody">
+                <tr><td colspan="7">
+                  <div class="empty-state">
+                    <div class="empty-icon">◉</div>
+                    <div class="empty-text">Loading watchlist...</div>
+                  </div>
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+
+      </div>
+
+      <!-- ── TK RECORDINGS PANEL ── -->
+      <div class="panel" id="panel-recordings">
+        <div class="section-header">
+          <span class="section-title">TikTok Recordings</span>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <label style="display:flex;gap:6px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--text2);cursor:pointer;margin:0;">
+              <input type="checkbox" id="select-all-recordings" style="width:14px;height:14px;accent-color:var(--accent);" onchange="toggleSelectAll(this)">
+              Select all
+            </label>
+            <button class="refresh-btn" onclick="loadRecordings()" title="Refresh">↻</button>
+          </div>
+        </div>
+        <div class="rec-grid" id="rec-grid">
+          <div class="empty-state" style="grid-column:1/-1">
+            <div class="empty-icon">▣</div>
+            <div class="empty-text">Loading recordings...</div>
+          </div>
+        </div>
+      </div>
+
+  <!-- BATCH ACTION BAR -->
+  <div class="batch-bar" id="batch-bar">
+    <span class="batch-count"><span id="batch-count-num">0</span> selected</span>
+    <button class="btn btn-ghost" onclick="batchDownload()">↓ Download</button>
+    <button class="btn" style="background:rgba(255,45,85,0.15);color:var(--accent);border:1px solid rgba(255,45,85,0.3);" onclick="batchDelete()">✕ Delete</button>
+    <button class="action-btn" onclick="clearSelection()" style="margin-left:4px;">✕ Clear</button>
+  </div>
+
+      <!-- ── DOWNLOADER PANEL ── -->
+      <div class="panel" id="panel-downloader">
+        <div class="section-header">
+          <span class="section-title">TikTok Video Downloader</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+          <textarea id="dl-urls-input" placeholder="Paste one or more TikTok URLs, one per line... or drag &amp; drop a .txt file"
+            style="width:100%;min-height:120px;background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);
+                   color:var(--text);font-family:var(--mono);font-size:11px;padding:12px;resize:vertical;
+                   box-sizing:border-box;outline:none;"
+            ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+            ondragleave="this.style.borderColor='var(--border2)'"
+            ondrop="handleUrlFileDrop(event)"></textarea>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="btn btn-primary" id="dl-submit-btn" onclick="submitDownloads()">↓ Download</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('dl-urls-input').value=''">Clear</button>
+            <button class="btn btn-ghost" onclick="openImportModal()" style="border-color:var(--blue);color:var(--blue);">⤵ Import</button>
+            <button class="btn" id="dl-resume-queue-btn" onclick="dlResumeQueue()"
+              style="display:none;background:rgba(0,229,160,0.15);color:var(--green);border:1px solid rgba(0,229,160,0.3);">
+              ▶ Resume queue
+            </button>
+          </div>
+        </div>
+
+        <div id="dl-results" style="display:none;">
+          <div class="section-header" style="margin-bottom:10px;">
+            <span class="section-title" style="font-size:12px;">Batch Progress</span>
+            <div style="display:flex;gap:6px;margin-left:auto;" onclick="event.stopPropagation()">
+              <button class="action-btn" onclick="dlClearByStatus('downloaded')" title="Clear completed">✓ Clear done</button>
+              <button class="action-btn" onclick="dlClearByStatus('skipped')" title="Clear skipped">↷ Clear skipped</button>
+              <button class="action-btn" style="color:var(--accent);" onclick="dlClearByStatus('error')" title="Clear failed">✕ Clear failed</button>
+            </div>
+            <div id="dl-progress-bar-wrap" style="flex:1;margin:0 16px;height:4px;background:var(--border2);border-radius:2px;overflow:hidden;display:none;">
+              <div id="dl-progress-bar" style="height:100%;width:0%;background:var(--green);transition:width 0.3s;border-radius:2px;"></div>
+            </div>
+            <span id="dl-progress-label" style="font-family:var(--mono);font-size:10px;color:var(--muted);"></span>
+          </div>
+          <div id="dl-summary" style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
+          <div id="dl-result-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+        </div>
+      </div>
+
+      <!-- ── DOWNLOADS PANEL ── -->
+      <div class="panel" id="panel-downloads">
+        <div class="section-header">
+          <span class="section-title">Downloaded Videos</span>
+          <button class="refresh-btn" onclick="loadDownloadsList()" title="Refresh">↻</button>
+        </div>
+        <div class="rec-grid" id="dl-grid">
+          <div class="empty-state">
+            <div class="empty-icon">▤</div>
+            <div class="empty-text">No downloads yet.</div>
+          </div>
+        </div>
+      </div>
+
+  <!-- DOWNLOADS BATCH BAR -->
+  <div class="batch-bar" id="dl-batch-bar">
+    <span class="batch-count"><span id="dl-batch-count-num">0</span> selected</span>
+    <button class="btn" style="background:rgba(255,45,85,0.15);color:var(--accent);border:1px solid rgba(255,45,85,0.3);"
+      onclick="dlBatchDelete()">✕ Delete</button>
+    <button class="action-btn" onclick="Object.keys(_dlSelectedFiles).forEach(k=>delete _dlSelectedFiles[k]);
+      document.querySelectorAll('.dl-checkbox').forEach(b=>b.checked=false);
+      document.querySelectorAll('[data-dlkey]').forEach(c=>c.classList.remove('selected'));
+      document.querySelectorAll('.dl-section-cb').forEach(c=>{c.checked=false;c.indeterminate=false;});
+      dlUpdateBatchBar();" style="margin-left:4px;">✕ Clear</button>
+  </div>
+
+      <!-- ── LOGS PANEL ── -->
+      <div class="panel" id="panel-logs">
+
+        <!-- App Log -->
+        <div class="log-container" style="margin-bottom:20px;">
+          <div class="log-toolbar">
+            <span class="section-title">App Log</span>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <label style="display:flex;gap:6px;align-items:center;margin:0;font-size:11px;">
+                <input type="checkbox" id="log-autoscroll" checked style="width:auto;">
+                Auto-scroll
+              </label>
+              <button class="action-btn" onclick="loadLogs()">↻ Refresh</button>
+            </div>
+          </div>
+          <div class="log-lines" id="log-lines">
+            <span class="log-line info">Loading logs...</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ADD TIKTOK USER MODAL -->
+<div class="modal-backdrop" id="add-modal">
+  <div class="modal">
+    <div class="modal-title">Add TikTok User</div>
+
+    <div class="form-group">
+      <label>TikTok Username</label>
+      <input type="text" id="f-username" placeholder="@username" autocomplete="off" />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Mode</label>
+        <select id="f-mode" onchange="onModeChange()">
+          <option value="automatic">Automatic</option>
+          <option value="manual">Manual</option>
+        </select>
+      </div>
+      <div class="form-group" id="f-interval-group">
+        <label>Check Interval (min)</label>
+        <input type="number" id="f-interval" value="5" min="1" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Proxy <span style="color:var(--muted);font-size:9px;">(optional)</span></label>
+      <input type="text" id="f-proxy" placeholder="http://127.0.0.1:8080" />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Duration (sec) <span style="color:var(--muted);font-size:9px;">(optional)</span></label>
+        <input type="number" id="f-duration" placeholder="unlimited" />
+      </div>
+      <div class="form-group" style="display:flex;align-items:flex-end;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:12px;margin-bottom:8px;">
+          <input type="checkbox" id="f-cookies" style="width:15px;height:15px;accent-color:var(--accent);flex-shrink:0;">
+          Use cookies
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top:4px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:12px;">
+        <input type="checkbox" id="f-record" checked style="width:15px;height:15px;accent-color:var(--accent);flex-shrink:0;">
+        Record when live
+      </label>
+      <div class="form-hint">When unchecked, user is monitored but not recorded</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAddModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddUser()">Add User</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-backdrop" id="import-modal" style="z-index:600;">
+  <div class="modal" style="max-width:680px;width:95vw;">
+    <div class="modal-title" style="color:var(--blue);">⤵ Import Videos</div>
+
+    <!-- Step 1: file drop + user select -->
+    <div id="import-step1">
+      <!-- Drop zone -->
+      <div id="import-dropzone"
+        style="border:2px dashed var(--border2);border-radius:var(--radius);padding:32px;text-align:center;
+               cursor:pointer;transition:border-color 0.15s;margin-bottom:16px;background:var(--surface);"
+        ondragover="event.preventDefault();this.style.borderColor='var(--blue)'"
+        ondragleave="this.style.borderColor='var(--border2)'"
+        ondrop="handleImportDrop(event)"
+        onclick="document.getElementById('import-file-input').click()">
+        <input type="file" id="import-file-input" multiple accept=".mp4" style="display:none"
+          onchange="handleImportFileSelect(this)">
+        <div style="font-size:28px;margin-bottom:8px;opacity:.5;">⤵</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text2);">
+          Drop .mp4 files here or click to browse
+        </div>
+        <div id="import-file-count" style="font-family:var(--mono);font-size:10px;color:var(--blue);margin-top:8px;"></div>
+      </div>
+
+      <!-- User selector -->
+      <div class="form-row" style="margin-bottom:16px;">
+        <div class="form-group">
+          <label>Existing User</label>
+          <select id="import-user-select" onchange="onImportUserSelect()">
+            <option value="">— select user —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Or New Username</label>
+          <input type="text" id="import-user-new" placeholder="@username"
+            oninput="onImportUserNew()" />
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeImportModal()">Cancel</button>
+        <button class="btn btn-primary" style="background:var(--blue);border-color:var(--blue);"
+          onclick="reviewImport()">Review →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: review list -->
+    <div id="import-step2" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text2);">
+          Importing as: <span id="import-review-user" style="color:var(--blue);"></span>
+        </span>
+        <button class="btn btn-ghost" style="font-size:10px;padding:4px 10px;" onclick="backToImportStep1()">← Back</button>
+      </div>
+
+      <div id="import-review-list" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:12px;"></div>
+
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text2);min-height:16px;margin-bottom:8px;"
+        id="import-summary"></div>
+      <div class="modal-actions">
+        <div style="display:flex;align-items:center;gap:8px;margin-right:auto;">
+          <input type="checkbox" id="import-force-all" style="width:13px;height:13px;accent-color:var(--blue);"
+            onchange="toggleForceAll(this)">
+          <label for="import-force-all" style="font-family:var(--mono);font-size:11px;color:var(--text2);
+            text-transform:none;letter-spacing:0;cursor:pointer;margin:0;">Force import all</label>
+        </div>
+        <button class="btn btn-ghost" id="import-back-btn" onclick="backToImportStep1()">← Back</button>
+        <button class="btn btn-ghost" onclick="closeImportModal()">Cancel</button>
+        <button class="btn btn-primary" id="import-start-btn"
+          style="background:var(--blue);border-color:var(--blue);"
+          onclick="startImport()">⤵ Start Import</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<!-- VIDEO MODAL -->
+<div class="vid-modal-overlay" id="vid-modal-overlay" onclick="closeVideoModal(event)">
+  <div class="vid-modal">
+    <div class="vid-modal-header">
+      <span class="vid-modal-title" id="vid-modal-title"></span>
+      <button class="vid-modal-close" onclick="closeVideoModal()">✕</button>
+    </div>
+    <div class="vid-modal-body">
+      <video id="vid-modal-player" playsinline controls></video>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.plyr.io/3.8.3/plyr.js"></script>
+<script src="/static/js/tiktok.js"></script>
+<script src="/static/js/core.js"></script>
+</body>
+</html>

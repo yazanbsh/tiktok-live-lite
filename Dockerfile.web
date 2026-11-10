@@ -1,0 +1,60 @@
+# ---- Stage 1: Builder ----
+FROM python:3.13-alpine AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# build tools for any dependency that has no musl wheel
+RUN apk add --no-cache \
+    gcc \
+    g++ \
+    libffi-dev \
+    musl-dev
+
+WORKDIR /app
+
+# Web UI dependencies only (tlr.py is stdlib-only, no project install needed)
+COPY web/requirements-web.txt ./web/requirements-web.txt
+RUN uv venv /app/.venv && \
+    uv pip install --python /app/.venv/bin/python -r web/requirements-web.txt
+
+# ---- Stage 2: Runtime ----
+FROM python:3.13-alpine
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/app/.venv/bin:$PATH"
+# All persistent data lives here — bind-mount this to the host
+ENV DATA_DIR=/data
+ENV WEBUI_PORT=8000
+# tlr.py is run as a subprocess, one process per recording
+ENV TLR_PATH=/app/tlr.py
+
+# ffmpeg also provides ffprobe, which tlr uses to validate the final MP4
+RUN apk add --no-cache ffmpeg bash
+
+# Create non-root user
+RUN addgroup -g 1000 appuser && \
+    adduser -u 1000 -G appuser -D appuser
+
+WORKDIR /app
+
+COPY --from=builder /app/.venv /app/.venv
+COPY tlr.py                    ./tlr.py
+COPY web/                      ./web/
+COPY entrypoint.web.sh         ./entrypoint.web.sh
+
+# Create /data dirs with correct ownership
+RUN mkdir -p /data/recordings /data/downloads /data/logs && \
+    chmod +x /app/entrypoint.web.sh && \
+    chown -R 1000:1000 /app /data
+
+USER 1000:1000
+
+EXPOSE ${WEBUI_PORT}
+
+VOLUME ["/data"]
+
+ENTRYPOINT ["/app/entrypoint.web.sh"]
