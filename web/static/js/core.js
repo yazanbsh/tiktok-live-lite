@@ -143,12 +143,14 @@ function openVideoModal(username, filename, type = 'rec') {
   const src  = `${base}/${encodeURIComponent(username)}/${encodeURIComponent(filename)}?inline=true`;
 
   const overlay = document.getElementById('vid-modal-overlay');
-  const videoEl = document.getElementById('vid-modal-player');
+  const body    = overlay.querySelector('.vid-modal-body');
   document.getElementById('vid-modal-title').textContent = filename;
 
-  if (_plyrInstance) { _plyrInstance.destroy(); _plyrInstance = null; }
-  videoEl.src = '';
-  videoEl.load();
+  // Plyr.destroy() detaches/replaces the <video>, so never reuse it by id:
+  // tear down fully and build a fresh element on every open.
+  _destroyPlayer();
+  body.innerHTML = '<video id="vid-modal-player" playsinline controls></video>';
+  const videoEl = body.querySelector('video');
 
   _plyrInstance = new Plyr(videoEl, {
     controls: ['play-large','play','progress','current-time','mute','volume','fullscreen'],
@@ -163,19 +165,28 @@ function openVideoModal(username, filename, type = 'rec') {
   document.body.style.overflow = 'hidden';
 }
 
-function closeVideoModal(e) {
-  if (e && e.target !== document.getElementById('vid-modal-overlay')) return;
+function _destroyPlayer() {
+  if (_plyrInstance) {
+    try { _plyrInstance.pause(); _plyrInstance.destroy(); } catch (e) {}
+    _plyrInstance = null;
+  }
+  const body = document.querySelector('#vid-modal-overlay .vid-modal-body');
+  if (body) body.innerHTML = '';  // also stops any buffering
+}
+
+function _closeVideo() {
   document.getElementById('vid-modal-overlay').classList.remove('open');
   document.body.style.overflow = '';
-  if (_plyrInstance) { _plyrInstance.pause(); }
+  _destroyPlayer();
+}
+
+function closeVideoModal(e) {
+  if (e && e.target !== document.getElementById('vid-modal-overlay')) return;
+  _closeVideo();
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    document.getElementById('vid-modal-overlay').classList.remove('open');
-    document.body.style.overflow = '';
-    if (_plyrInstance) _plyrInstance.pause();
-  }
+  if (e.key === 'Escape') _closeVideo();
 });
 
 // ── Init + auto-refresh ───────────────────────────────────────────────────────
